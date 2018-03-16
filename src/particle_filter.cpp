@@ -25,7 +25,32 @@ void ParticleFilter::init(double x, double y, double theta, double std[]) {
 	// Add random Gaussian noise to each particle.
 	// NOTE: Consult particle_filter.h for more information about this method (and others in this file).
 
+	default_random_engine gen;
+
+	num_particles = 1000; 
+
+	// Ceate a normal (Gaussian) distribution for x, y, and theta
+	normal_distribution<double> dist_x(x, std[0]);
+	normal_distribution<double> dist_y(y, std[1]);
+	normal_distribution<double> dist_theta(theta, std[2]);	
+
+	// Create a particle and draw x, y and theta from distributions
+	struct Particle particle;
+	particle.x = dist_x(gen);
+	particle.y = dist_y(gen);
+	particle.theta = fmod(dist_theta(gen), 2*M_PI);
+	particle.weight = 1/num_particles;
+
+	cout << "Initial car pose: " << particle.x << ", " << particle.y << ", " << particle.theta << endl;
+
+	for (int i = 0; i < num_particles; ++i) {
+		particle.id = i;
+		particles.push_back(particle);
+	}
+
+	is_initialized = true;
 }
+
 
 void ParticleFilter::prediction(double delta_t, double std_pos[], double velocity, double yaw_rate) {
 	// TODO: Add measurements to each particle and add random Gaussian noise.
@@ -35,6 +60,7 @@ void ParticleFilter::prediction(double delta_t, double std_pos[], double velocit
 
 }
 
+
 void ParticleFilter::dataAssociation(std::vector<LandmarkObs> predicted, std::vector<LandmarkObs>& observations) {
 	// TODO: Find the predicted measurement that is closest to each observed measurement and assign the 
 	//   observed measurement to this particular landmark.
@@ -42,6 +68,7 @@ void ParticleFilter::dataAssociation(std::vector<LandmarkObs> predicted, std::ve
 	//   implement this method and use it as a helper during the updateWeights phase.
 
 }
+
 
 void ParticleFilter::updateWeights(double sensor_range, double std_landmark[], 
 		const std::vector<LandmarkObs> &observations, const Map &map_landmarks) {
@@ -57,12 +84,14 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
 	//   http://planning.cs.uiuc.edu/node99.html
 }
 
+
 void ParticleFilter::resample() {
 	// TODO: Resample particles with replacement with probability proportional to their weight. 
 	// NOTE: You may find std::discrete_distribution helpful here.
 	//   http://en.cppreference.com/w/cpp/numeric/random/discrete_distribution
 
 }
+
 
 Particle ParticleFilter::SetAssociations(Particle& particle, const std::vector<int>& associations, 
                                      const std::vector<double>& sense_x, const std::vector<double>& sense_y)
