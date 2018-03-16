@@ -30,8 +30,6 @@ class ParticleFilter {
 	// Number of particles to draw
 	int num_particles; 
 	
-	
-	
 	// Flag, if filter is initialized
 	bool is_initialized;
 	
@@ -43,9 +41,12 @@ public:
 	// Set of current particles
 	std::vector<Particle> particles;
 
+	// Default constructor
+	ParticleFilter() : num_particles(1000), is_initialized(false) {}
+
 	// Constructor
 	// @param num_particles Number of particles
-	ParticleFilter() : num_particles(0), is_initialized(false) {}
+	ParticleFilter(int num_particles) : num_particles(num_particles), is_initialized(false) {}
 
 	// Destructor
 	~ParticleFilter() {}
