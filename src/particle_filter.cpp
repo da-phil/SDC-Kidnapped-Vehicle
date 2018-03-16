@@ -36,15 +36,15 @@ void ParticleFilter::init(double x, double y, double theta, double std[]) {
 
 	// Create a particle and draw x, y and theta from distributions
 	struct Particle particle;
-	particle.x = dist_x(gen);
-	particle.y = dist_y(gen);
-	particle.theta = fmod(dist_theta(gen), 2*M_PI);
 	particle.weight = 1/num_particles;
 
 	cout << "Initial car pose: " << particle.x << ", " << particle.y << ", " << particle.theta << endl;
 
 	for (int i = 0; i < num_particles; ++i) {
 		particle.id = i;
+		particle.x = dist_x(gen);
+		particle.y = dist_y(gen);
+		particle.theta = fmod(dist_theta(gen), 2*M_PI);
 		particles.push_back(particle);
 	}
 
