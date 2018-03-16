@@ -62,9 +62,16 @@ void ParticleFilter::prediction(double delta_t, double std_pos[], double velocit
 	normal_distribution<double> dist_y(0, std_pos[1]);
 	normal_distribution<double> dist_theta(0, std_pos[2]);	
 	for (int i = 0; i < num_particles; ++i) {
-		particles[i].x += dist_x(gen) + (velocity / yaw_rate) * (sin(particles[i].theta + yaw_rate_dt) - sin(particles[i].theta));
-		particles[i].y += dist_y(gen) + (velocity / yaw_rate) * (cos(particles[i].theta) - cos(particles[i].theta + yaw_rate_dt));
-		particles[i].theta = fmod(particles[i].theta + dist_theta(gen) + yaw_rate_dt, 2*M_PI);
+		// handle division by zero case:
+		if (fabs(yaw_rate) < std::numeric_limits<double>::epsilon()) {
+			particles[i].x += cos(particles[i].theta) * velocity * delta_t;
+			particles[i].y += sin(particles[i].theta) * velocity * delta_t;
+			// particles[i].theta doesn't change
+		} else {
+			particles[i].x += dist_x(gen) + (velocity / yaw_rate) * (sin(particles[i].theta + yaw_rate_dt) - sin(particles[i].theta));
+			particles[i].y += dist_y(gen) + (velocity / yaw_rate) * (cos(particles[i].theta) - cos(particles[i].theta + yaw_rate_dt));
+			particles[i].theta = fmod(particles[i].theta + dist_theta(gen) + yaw_rate_dt, 2*M_PI);
+		}
 	}
 }
 
@@ -74,7 +81,10 @@ void ParticleFilter::dataAssociation(std::vector<LandmarkObs> predicted, std::ve
 	//   observed measurement to this particular landmark.
 	// NOTE: this method will NOT be called by the grading code. But you will probably find it useful to 
 	//   implement this method and use it as a helper during the updateWeights phase.
-
+	for (int i = 0; i < predicted.size(); i++)
+		cout << predicted[i].id << endl;
+	for (int i = 0; i < observations.size(); i++)
+		cout << observations[i].id << endl;
 }
 
 
@@ -90,6 +100,8 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
 	//   and the following is a good resource for the actual equation to implement (look at equation 
 	//   3.33
 	//   http://planning.cs.uiuc.edu/node99.html
+
+	//double prob = multivariate_gaussian(pos, mu, std_landmark);
 }
 
 
