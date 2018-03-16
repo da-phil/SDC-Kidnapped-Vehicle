@@ -241,4 +241,17 @@ inline bool read_landmark_data(std::string filename, std::vector<LandmarkObs>& o
 	return true;
 }
 
+/* Multivariate gaussian implementation with two variables.
+ * @param x  vector containing x-y values
+ * @param mu vector of size 2 with means
+ * @param std vector of size 2 with standard deviations
+ * @output Probability
+ */
+inline double multivariate_gaussian(double x[], double mu[], double std[]) {
+	double gauss_norm = (1/(2 * M_PI * std[0] * std[1]));
+	double exponent   = pow((x[0] - mu[0]), 2)/pow(2 * std[0], 2) + pow((x[1] - mu[1]), 2)/pow(2 * std[1], 2);
+	return (gauss_norm * exp(-exponent));
+}
+
+
 #endif /* HELPER_FUNCTIONS_H_ */
