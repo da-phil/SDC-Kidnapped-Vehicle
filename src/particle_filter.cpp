@@ -30,7 +30,9 @@ void ParticleFilter::init(double x, double y, double theta, double std[]) {
 	// Ceate a normal (Gaussian) distribution for x, y, and theta
 	normal_distribution<double> dist_x(x, std[0]);
 	normal_distribution<double> dist_y(y, std[1]);
-	normal_distribution<double> dist_theta(theta, std[2]);	
+	normal_distribution<double> dist_theta(theta, std[2]);
+
+	weights.resize(num_particles);
 
 	// Create a particle and draw x, y and theta from distributions
 	struct Particle particle;
@@ -81,10 +83,17 @@ void ParticleFilter::dataAssociation(std::vector<LandmarkObs> predicted, std::ve
 	//   observed measurement to this particular landmark.
 	// NOTE: this method will NOT be called by the grading code. But you will probably find it useful to 
 	//   implement this method and use it as a helper during the updateWeights phase.
-	for (int i = 0; i < predicted.size(); i++)
-		cout << predicted[i].id << endl;
-	for (int i = 0; i < observations.size(); i++)
-		cout << observations[i].id << endl;
+	for (LandmarkObs& observation: observations) {
+		double last_dist = 50.0;
+		double new_dist = 0.0;
+		int closest_id = 0;
+		for (LandmarkObs predict: predicted) {
+			new_dist = dist(observation.x, observation.y, predict.x, predict.y);
+			if (new_dist < last_dist)
+				closest_id = predict.id;
+		}
+		observation.id = closest_id;
+	}
 }
 
 
