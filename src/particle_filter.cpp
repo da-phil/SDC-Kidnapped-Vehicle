@@ -25,8 +25,6 @@ void ParticleFilter::init(double x, double y, double theta, double std[]) {
 	// Add random Gaussian noise to each particle.
 	// NOTE: Consult particle_filter.h for more information about this method (and others in this file).
 
-	default_random_engine gen;
-
 	// Ceate a normal (Gaussian) distribution for x, y, and theta
 	normal_distribution<double> dist_x(x, std[0]);
 	normal_distribution<double> dist_y(y, std[1]);
@@ -57,7 +55,7 @@ void ParticleFilter::prediction(double delta_t, double std_pos[], double velocit
 	//  http://www.cplusplus.com/reference/random/default_random_engine/
 	double yaw_rate_dt = yaw_rate*delta_t;
 	// Ceate a zero-mean normal (Gaussian) distribution for x, y, and theta
-	default_random_engine gen;
+	
 	normal_distribution<double> dist_x(0, std_pos[0]);
 	normal_distribution<double> dist_y(0, std_pos[1]);
 	normal_distribution<double> dist_theta(0, std_pos[2]);	
@@ -86,6 +84,7 @@ void ParticleFilter::dataAssociation(std::vector<LandmarkObs> predicted, std::ve
 		double new_dist = 0.0;
 		int closest_id = 0;
 		for (LandmarkObs predict: predicted) {
+			//cout << "evaluating landmark " << predict.id << endl;
 			new_dist = dist(observation.x, observation.y, predict.x, predict.y);
 			if (new_dist < last_dist) {
 				last_dist = new_dist;
@@ -93,9 +92,10 @@ void ParticleFilter::dataAssociation(std::vector<LandmarkObs> predicted, std::ve
 			}
 		}
 		observation.id = closest_id;
-		cout << "found association with id " << closest_id << endl;
+		//cout << "found association with id " << closest_id << endl;
 	}
 }
+
 
 
 void ParticleFilter::updateWeights(double sensor_range, double std_landmark[], 
@@ -154,8 +154,6 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
 			}
 		}
 	}
-
-
 }
 
 
@@ -164,6 +162,28 @@ void ParticleFilter::resample() {
 	// NOTE: You may find std::discrete_distribution helpful here.
 	//   http://en.cppreference.com/w/cpp/numeric/random/discrete_distribution
 
+	// use wheel trick from ai in robotics course:
+	
+	std::vector<Particle> new_particles;
+
+	// draw random particle index at first:
+	std::uniform_int_distribution<int> dist_int(0, num_particles-1);
+ 	int index = dist_int(gen);
+
+ 	// draw random weight
+	double max_weight = *std::max_element(weights.begin(), weights.end());
+	std::uniform_real_distribution<double> dist_real(0.0, 2*max_weight);
+
+	for (int i = 0; i < num_particles; i++)
+	{
+		int beta = dist_real(gen);
+		while (beta > weights[index]) {
+			beta -= weights[index];
+			index = (index+1) % num_particles;
+		}
+		new_particles.push_back(particles[index]);
+	}
+    particles = new_particles;
 }
 
 
