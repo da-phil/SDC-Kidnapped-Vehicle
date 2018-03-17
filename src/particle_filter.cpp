@@ -40,7 +40,7 @@ void ParticleFilter::init(double x, double y, double theta, double std[]) {
 		particle.id = i;
 		particle.x = dist_x(gen);
 		particle.y = dist_y(gen);
-		particle.theta = fmod(dist_theta(gen), 2*M_PI);
+		particle.theta = fmod(dist_theta(gen), 2.0*M_PI);
 		particles.push_back(particle);
 	}
 
@@ -68,7 +68,8 @@ void ParticleFilter::prediction(double delta_t, double std_pos[], double velocit
 		} else {
 			p.x += dist_x(gen) + (velocity / yaw_rate) * (sin(p.theta + yaw_rate_dt) - sin(p.theta));
 			p.y += dist_y(gen) + (velocity / yaw_rate) * (cos(p.theta) - cos(p.theta + yaw_rate_dt));
-			p.theta = fmod(p.theta + dist_theta(gen) + yaw_rate_dt, 2*M_PI);
+			//p.theta = fmod(p.theta + dist_theta(gen) + yaw_rate_dt, 2.0*M_PI);
+			p.theta = p.theta + dist_theta(gen) + yaw_rate_dt;
 		}
 	}
 }
@@ -97,7 +98,6 @@ void ParticleFilter::dataAssociation(std::vector<LandmarkObs> predicted, std::ve
 }
 
 
-
 void ParticleFilter::updateWeights(double sensor_range, double std_landmark[], 
 		const std::vector<LandmarkObs> &observations, const Map &map_landmarks) {
 	// TODO: Update the weights of each particle using a mult-variate Gaussian distribution. You can read
@@ -111,13 +111,18 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
 	//   3.33
 	//   http://planning.cs.uiuc.edu/node99.html
 	
-	for (Particle& p: particles)
+	for (int i = 0; i < num_particles; i++)
 	{
+		// clear debug information
+		particles[i].sense_x.clear();
+		particles[i].sense_y.clear();
+		particles[i].associations.clear();
+
 		// predict landmarks next to the car, within range
 		std::vector<LandmarkObs> predicted;
 		LandmarkObs obs;
 		for (auto lm: map_landmarks.landmark_list) {
-			if (dist(p.x, p.y, lm.x_f, lm.y_f) < sensor_range) {
+			if (dist(particles[i].x, particles[i].y, lm.x_f, lm.y_f) <= sensor_range) {
 				obs.id = lm.id_i;
 				obs.x  = lm.x_f;
 				obs.y  = lm.y_f;
@@ -130,8 +135,9 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
 		std::vector<LandmarkObs> obs_transformed;
 		for (LandmarkObs obs: observations) {
 			LandmarkObs transformed;
-			transformed.x  = p.x + obs.x * cos(p.theta) - obs.y * sin(p.theta);
-			transformed.y  = p.y + obs.x * sin(p.theta) + obs.y * cos(p.theta);
+			transformed.id = obs.id;
+			transformed.x  = particles[i].x + obs.x * cos(particles[i].theta) - obs.y * sin(particles[i].theta);
+			transformed.y  = particles[i].y + obs.x * sin(particles[i].theta) + obs.y * cos(particles[i].theta);
 			obs_transformed.push_back(transformed);
 		}
 
@@ -139,16 +145,24 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
 		dataAssociation(predicted, obs_transformed);
 		
 		// start with a particle weight of 1.0
-		p.weight = 1.0;
+		particles[i].weight = 1.0;
 		
 		for (LandmarkObs obs: obs_transformed) {
 			for (LandmarkObs pred: predicted) {
 				if (pred.id == obs.id) {
-					cout << "Particle " << p.id << " - found landmark correspondence (" << obs.id << "), calc weights..." << endl;
+					cout << "Particle " << particles[i].id << " - found landmark correspondence (" << obs.id << "), calc weights..." << endl;
+					// calculate new weight with multivariate gaussian probability density function
+					// use observed landmark as mean and predicted landmark location as function variable
 					double pos[] = {pred.x, pred.y};
 					double mu[]  = {obs.x, obs.y};
-					p.weight *= multivariate_gaussian(pos, mu, std_landmark);
-					weights[p.id] = p.weight;
+					particles[i].weight *= multivariate_gaussian(pos, mu, std_landmark);
+					
+					weights[i] = particles[i].weight;
+					
+					// add debug information
+					particles[i].associations.push_back(obs.id);
+					particles[i].sense_x.push_back(obs.x);
+					particles[i].sense_y.push_back(obs.y);
 					break;					
 				}
 			}
@@ -169,14 +183,15 @@ void ParticleFilter::resample() {
 	// draw random particle index at first:
 	std::uniform_int_distribution<int> dist_int(0, num_particles-1);
  	int index = dist_int(gen);
+ 	double beta = 0.0;
 
  	// draw random weight
 	double max_weight = *std::max_element(weights.begin(), weights.end());
-	std::uniform_real_distribution<double> dist_real(0.0, 2*max_weight);
+	std::uniform_real_distribution<double> dist_real(0.0, 2.0*max_weight);
 
 	for (int i = 0; i < num_particles; i++)
 	{
-		int beta = dist_real(gen);
+		beta += dist_real(gen);
 		while (beta > weights[index]) {
 			beta -= weights[index];
 			index = (index+1) % num_particles;
@@ -194,6 +209,11 @@ Particle ParticleFilter::SetAssociations(Particle& particle, const std::vector<i
     // associations: The landmark id that goes along with each listed association
     // sense_x: the associations x mapping already converted to world coordinates
     // sense_y: the associations y mapping already converted to world coordinates
+
+	//Clear the previous associations
+	particle.associations.clear();
+	particle.sense_x.clear();
+	particle.sense_y.clear();
 
     particle.associations= associations;
     particle.sense_x = sense_x;
