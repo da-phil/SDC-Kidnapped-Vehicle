@@ -36,9 +36,7 @@ void ParticleFilter::init(double x, double y, double theta, double std[]) {
 
 	// Create a particle and draw x, y and theta from distributions
 	struct Particle particle;
-	particle.weight = 1/num_particles;
-
-	cout << "Initial car pose: " << particle.x << ", " << particle.y << ", " << particle.theta << endl;
+	particle.weight = 1.0;
 
 	for (int i = 0; i < num_particles; ++i) {
 		particle.id = i;
@@ -63,16 +61,16 @@ void ParticleFilter::prediction(double delta_t, double std_pos[], double velocit
 	normal_distribution<double> dist_x(0, std_pos[0]);
 	normal_distribution<double> dist_y(0, std_pos[1]);
 	normal_distribution<double> dist_theta(0, std_pos[2]);	
-	for (int i = 0; i < num_particles; ++i) {
+	for (Particle& p: particles) {
 		// handle division by zero case:
 		if (fabs(yaw_rate) < std::numeric_limits<double>::epsilon()) {
-			particles[i].x += cos(particles[i].theta) * velocity * delta_t;
-			particles[i].y += sin(particles[i].theta) * velocity * delta_t;
-			// particles[i].theta doesn't change
+			p.x += cos(p.theta) * velocity * delta_t;
+			p.y += sin(p.theta) * velocity * delta_t;
+			// p.theta doesn't change
 		} else {
-			particles[i].x += dist_x(gen) + (velocity / yaw_rate) * (sin(particles[i].theta + yaw_rate_dt) - sin(particles[i].theta));
-			particles[i].y += dist_y(gen) + (velocity / yaw_rate) * (cos(particles[i].theta) - cos(particles[i].theta + yaw_rate_dt));
-			particles[i].theta = fmod(particles[i].theta + dist_theta(gen) + yaw_rate_dt, 2*M_PI);
+			p.x += dist_x(gen) + (velocity / yaw_rate) * (sin(p.theta + yaw_rate_dt) - sin(p.theta));
+			p.y += dist_y(gen) + (velocity / yaw_rate) * (cos(p.theta) - cos(p.theta + yaw_rate_dt));
+			p.theta = fmod(p.theta + dist_theta(gen) + yaw_rate_dt, 2*M_PI);
 		}
 	}
 }
@@ -84,15 +82,18 @@ void ParticleFilter::dataAssociation(std::vector<LandmarkObs> predicted, std::ve
 	// NOTE: this method will NOT be called by the grading code. But you will probably find it useful to 
 	//   implement this method and use it as a helper during the updateWeights phase.
 	for (LandmarkObs& observation: observations) {
-		double last_dist = 50.0;
+		double last_dist = 100.0;
 		double new_dist = 0.0;
 		int closest_id = 0;
 		for (LandmarkObs predict: predicted) {
 			new_dist = dist(observation.x, observation.y, predict.x, predict.y);
-			if (new_dist < last_dist)
+			if (new_dist < last_dist) {
+				last_dist = new_dist;
 				closest_id = predict.id;
+			}
 		}
 		observation.id = closest_id;
+		cout << "found association with id " << closest_id << endl;
 	}
 }
 
@@ -109,8 +110,52 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
 	//   and the following is a good resource for the actual equation to implement (look at equation 
 	//   3.33
 	//   http://planning.cs.uiuc.edu/node99.html
+	
+	for (Particle& p: particles)
+	{
+		// predict landmarks next to the car, within range
+		std::vector<LandmarkObs> predicted;
+		LandmarkObs obs;
+		for (auto lm: map_landmarks.landmark_list) {
+			if (dist(p.x, p.y, lm.x_f, lm.y_f) < sensor_range) {
+				obs.id = lm.id_i;
+				obs.x  = lm.x_f;
+				obs.y  = lm.y_f;
+				predicted.push_back(obs);
+			}
+		}
 
-	//double prob = multivariate_gaussian(pos, mu, std_landmark);
+		// in order to compare map landmarks with observed landmarks we have to transform
+		// the observed landmarks into the map coordinate frame
+		std::vector<LandmarkObs> obs_transformed;
+		for (LandmarkObs obs: observations) {
+			LandmarkObs transformed;
+			transformed.x  = p.x + obs.x * cos(p.theta) - obs.y * sin(p.theta);
+			transformed.y  = p.y + obs.x * sin(p.theta) + obs.y * cos(p.theta);
+			obs_transformed.push_back(transformed);
+		}
+
+		// find association between map landmarks and observed landmarks
+		dataAssociation(predicted, obs_transformed);
+		
+		// start with a particle weight of 1.0
+		p.weight = 1.0;
+		
+		for (LandmarkObs obs: obs_transformed) {
+			for (LandmarkObs pred: predicted) {
+				if (pred.id == obs.id) {
+					cout << "Particle " << p.id << " - found landmark correspondence (" << obs.id << "), calc weights..." << endl;
+					double pos[] = {pred.x, pred.y};
+					double mu[]  = {obs.x, obs.y};
+					p.weight *= multivariate_gaussian(pos, mu, std_landmark);
+					weights[p.id] = p.weight;
+					break;					
+				}
+			}
+		}
+	}
+
+
 }
 
 
@@ -133,6 +178,7 @@ Particle ParticleFilter::SetAssociations(Particle& particle, const std::vector<i
     particle.associations= associations;
     particle.sense_x = sense_x;
     particle.sense_y = sense_y;
+    return particle;
 }
 
 string ParticleFilter::getAssociations(Particle best)
