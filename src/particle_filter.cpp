@@ -150,7 +150,7 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
 		for (LandmarkObs obs: obs_transformed) {
 			for (LandmarkObs pred: predicted) {
 				if (pred.id == obs.id) {
-					cout << "Particle " << particles[i].id << " - found landmark correspondence (" << obs.id << "), calc weights..." << endl;
+					//cout << "Particle " << particles[i].id << " - found landmark correspondence (" << obs.id << "), calc weights..." << endl;
 					// calculate new weight with multivariate gaussian probability density function
 					// use observed landmark as mean and predicted landmark location as function variable
 					double pos[] = {pred.x, pred.y};
