@@ -1,4 +1,6 @@
 ## Project Introduction
+![]( imgs/simulator-screencast.gif)
+
 Your robot has been kidnapped and transported to a new location! Luckily it has a map of this location, a (noisy) GPS estimate of its initial location, and lots of (noisy) sensor and control data.
 
 In this project I implemented a 2 dimensional particle filter in C++. The particle filter will be given a map and some initial localization information (analogous to what a GPS would provide). At each time step the filter will also get observation and control data in order to be able to localize itself.
